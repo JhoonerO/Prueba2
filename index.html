@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juegos Interactivos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .game-section {
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 50px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            width: 60%;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .row {
+            display: flex;
+            margin: 10px 0;
+        }
+
+        .box {
+            width: 50px;
+            height: 50px;
+            background-color: #d3d3d3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 5px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid #000;
+            user-select: none;
+        }
+
+        .dropzone {
+            background-color: #fff;
+            border: 2px dashed #000;
+        }
+
+        canvas {
+            border: 2px solid #000;
+            background-color: #fafafa;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Primer juego: Organizar números -->
+    <div class="game-section">
+        <h2>Juego de Organizar Números</h2>
+        <div class="container">
+            <!-- Fila de números desordenados -->
+            <div id="numbers" class="row">
+                <!-- Los elementos serán generados por JS -->
+            </div>
+
+            <!-- Fila de dropzones -->
+            <div id="dropzones" class="row">
+                <!-- Las dropzones serán generadas por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Segundo juego: Culebrita -->
+    <div class="game-section">
+        <h2>Juego de la Culebrita</h2>
+        <canvas id="snakeCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <script>
+        // ------------ Primer juego: Organizar Números ------------
+
+        const numbers = [1, 9, 3, 7, 5, 0, 2, 6, 8, 4];
+
+        function initialize() {
+            const numbersContainer = document.getElementById('numbers');
+            const dropzonesContainer = document.getElementById('dropzones');
+
+            numbersContainer.innerHTML = '';
+            dropzonesContainer.innerHTML = '';
+
+            numbers.forEach((number, index) => {
+                let numberBox = document.createElement('div');
+                numberBox.className = 'box';
+                numberBox.draggable = true;
+                numberBox.textContent = number;
+                numberBox.id = `number-${index}`;
+
+                numberBox.addEventListener('dragstart', dragStart);
+
+                numbersContainer.appendChild(numberBox);
+            });
+
+            for (let i = 0; i < numbers.length; i++) {
+                let dropzone = document.createElement('div');
+                dropzone.className = 'box dropzone';
+                dropzone.id = `dropzone-${i}`;
+
+                dropzone.addEventListener('dragover', dragOver);
+                dropzone.addEventListener('drop', drop);
+
+                dropzonesContainer.appendChild(dropzone);
+            }
+        }
+
+        function dragStart(event) {
+            event.dataTransfer.setData('text', event.target.id);
+        }
+
+        function dragOver(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const draggedElementId = event.dataTransfer.getData('text');
+            const draggedElement = document.getElementById(draggedElementId);
+            const dropzone = event.target;
+
+            if (dropzone.classList.contains('dropzone') && dropzone.children.length === 0) {
+                dropzone.appendChild(draggedElement);
+            }
+
+            checkIfSorted();
+        }
+
+        function checkIfSorted() {
+            const dropzones = document.querySelectorAll('.dropzone');
+            let sorted = true;
+
+            dropzones.forEach((dropzone, index) => {
+                if (dropzone.children.length === 0 || parseInt(dropzone.children[0].textContent) !== index) {
+                    sorted = false;
+                }
+            });
+
+            if (sorted) {
+                Swal.fire({
+                    title: '¡Felicidades!',
+                    text: 'Has organizado los números correctamente.',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    initialize();
+                });
+            } else if (Array.from(dropzones).every(zone => zone.children.length > 0)) {
+                Swal.fire({
+                    title: '¡Inténtalo otra vez!',
+                    text: 'Los números no están en el orden correcto.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    initialize();
+                });
+            }
+        }
+
+        window.onload = initialize;
+
+
+        // ------------ Segundo juego: Culebrita ------------
+
+        const canvas = document.getElementById('snakeCanvas');
+        const ctx = canvas.getContext('2d');
+        const box = 20;
+
+        let snake = [];
+        snake[0] = { x: 9 * box, y: 10 * box };
+
+        let direction = '';
+        let food = {
+            x: Math.floor(Math.random() * 19 + 1) * box,
+            y: Math.floor(Math.random() * 19 + 1) * box
+        };
+        let score = 0;
+
+        // Previene el scroll con las flechas
+        window.addEventListener('keydown', function(event) {
+            const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+            if (keys.includes(event.key)) {
+                event.preventDefault(); // Evita el comportamiento predeterminado del navegador
+                setDirection(event);
+            }
+        });
+
+        function setDirection(event) {
+            if (event.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+            if (event.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+            if (event.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+            if (event.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar la serpiente
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = i === 0 ? 'green' : 'lightgreen';
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            // Dibujar la comida
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x, food.y, box, box);
+
+            // Posición actual de la cabeza de la serpiente
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            // Direcciones de la serpiente
+            if (direction === "UP") snakeY -= box;
+            if (direction === "DOWN") snakeY += box;
+            if (direction === "LEFT") snakeX -= box;
+            if (direction === "RIGHT") snakeX += box;
+
+            // Si la serpiente come la comida
+            if (snakeX === food.x && snakeY === food.y) {
+                score++;
+                food = {
+                    x: Math.floor(Math.random() * 19 + 1) * box,
+                    y: Math.floor(Math.random() * 19 + 1) * box
+                };
+            } else {
+                snake.pop();
+            }
+
+            let newHead = {
+                x: snakeX,
+                y: snakeY
+            };
+
+            // Fin del juego si la serpiente choca contra las paredes o contra sí misma
+            if (snakeX < 0 || snakeY < 0 || snakeX >= canvas.width || snakeY >= canvas.height || collision(newHead, snake)) {
+                clearInterval(game);
+                Swal.fire({
+                    title: '¡Game Over!',
+                    text: 'Has perdido. Puntuación: ' + score,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    // Reiniciar juego
+                    direction = '';
+                    score = 0;
+                    snake = [{ x: 9 * box, y: 10 * box }];
+                    game = setInterval(draw, 100);
+                });
+            }
+
+            snake.unshift(newHead);
+        }
+
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x === array[i].x && head.y === array[i].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        let game = setInterval(draw, 100);
+    </script>
+
+</body>
+</html>
